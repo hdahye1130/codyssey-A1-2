@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 국내 여행 추천 프로그램
-- OpenAI API: 여행 지역 추천 및 최종 리포트 생성
+- Google Gemini API: 여행 지역 추천 및 최종 리포트 생성
 - Naver Local API: 맛집 검색
 """
 
@@ -15,20 +15,20 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
+from google import genai
 
 
 def load_config():
     """환경 변수 및 설정값 로드"""
     load_dotenv()
     
-    openai_key = os.getenv("OPENAI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY")
     naver_key_id = os.getenv("NAVER_API_KEY_ID")
     naver_key = os.getenv("NAVER_API_KEY")
     
-    if not openai_key:
-        print("❌ 오류: OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
-        print("   README.md의 '설별 및 실행 방법'을 참고하여 설정하세요.")
+    if not gemini_key:
+        print("❌ 오류: GEMINI_API_KEY 환경변수가 설정되지 않았습니다.")
+        print("   README.md의 '설정 및 실행 방법'을 참고하여 설정하세요.")
         sys.exit(1)
     
     if not naver_key_id or not naver_key:
@@ -37,10 +37,10 @@ def load_config():
         sys.exit(1)
     
     return {
-        "openai_key": openai_key,
+        "gemini_key": gemini_key,
         "naver_key_id": naver_key_id,
         "naver_key": naver_key,
-        "openai_model": "gpt-4o-mini"  # 최신 모델 사용
+        "gemini_model": "gemini-3.6-flash"  # 최신 안정화된 Gemini 모델
     }
 
 
@@ -55,7 +55,7 @@ def validate_date(date_str):
 
 def call_llm_for_recommendation(client, date_str):
     """
-    1단계: OpenAI API로 여행 지역 추천
+    1단계: Google Gemini API로 여행 지역 추천
     반환: JSON 파싱된 dict (필수 키: recommended_city, weather, events, reason)
     """
     prompt = f"""당신은 한국 여행 전문가입니다.
@@ -77,13 +77,11 @@ def call_llm_for_recommendation(client, date_str):
 
     try:
         print("  → 1차 추천 생성 중...")
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        # Chat API 사용
+        chat = client.chats.create(model="gemini-3.6-flash")
+        response = chat.send_message(prompt)
         
-        response_text = response.choices[0].message.content.strip()
+        response_text = response.text.strip()
         
         # JSON 추출 (```json ... ``` 형식 제거)
         json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
@@ -111,15 +109,12 @@ def call_llm_for_recommendation(client, date_str):
 }}
 
 날짜: {date_str}
-다른 설명 없이 JSON만 출력하세요."""
+다른 설명 없이 필수 키를 포함한 유효한 JSON만 출력하세요."""
         
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                max_tokens=500,
-                messages=[{"role": "user", "content": retry_prompt}]
-            )
-            response_text = response.choices[0].message.content.strip()
+            chat = client.chats.create(model="gemini-3.6-flash")
+            response = chat.send_message(retry_prompt)
+            response_text = response.text.strip()
             json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
             if json_match:
                 response_text = json_match.group(1)
@@ -211,7 +206,7 @@ def search_restaurants(naver_key_id, naver_key, city):
 
 def call_llm_for_report(client, recommendation, restaurants):
     """
-    3단계: OpenAI API로 최종 여행 리포트 생성
+    3단계: Google Gemini API로 최종 여행 리포트 생성
     반환: Markdown 리포트 텍스트
     """
     city = recommendation.get("recommended_city", "")
@@ -259,12 +254,9 @@ def call_llm_for_report(client, recommendation, restaurants):
 
     try:
         print("  → 최종 리포트 생성 중...")
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        report = response.choices[0].message.content.strip()
+        chat = client.chats.create(model="gemini-3.6-flash")
+        response = chat.send_message(prompt)
+        report = response.text.strip()
         print("  ✓ 리포트 생성 완료")
         return report, None
     except Exception as e:
@@ -344,8 +336,8 @@ def main():
     # 설정 로드
     config = load_config()
     
-    # OpenAI 클라이언트 초기화
-    client = OpenAI(api_key=config["openai_key"])
+    # Google Gemini 클라이언트 초기화
+    client = genai.Client(api_key=config["gemini_key"])
     
     errors = []
     

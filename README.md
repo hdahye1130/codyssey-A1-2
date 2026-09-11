@@ -6,7 +6,7 @@
 
 이 프로그램은 다음 3가지 주요 기능을 수행합니다:
 
-1. **LLM 기반 여행지 추천** (OpenAI API)
+1. **LLM 기반 여행지 추천** (Google Gemini API)
    - 입력된 날짜에 맞는 국내 여행지 추천
    - 해당 시기의 날씨 정보 및 행사/축제 정보 제공
 
@@ -14,7 +14,7 @@
    - 추천 지역의 맛집 5곳 검색
    - 업체명, 주소, 카테고리, 방문 URL, 지도 좌표 제공
 
-3. **여행 리포트 생성** (OpenAI API)
+3. **여행 리포트 생성** (Google Gemini API)
    - 추천 지역, 날씨, 행사, 맛집 정보 통합
    - Markdown 형식의 체계적인 여행 일정 제안
 
@@ -45,10 +45,12 @@ pip install -r requirements.txt
 
 이 프로그램은 두 가지 API를 사용합니다:
 
-#### OpenAI API Key
-- 홈페이지: https://platform.openai.com/account/api-keys
-- 가입 후 API 키 생성
-- 활성화 및 결제 정보 필수
+#### Google Gemini API Key (무료)
+- 홈페이지: https://ai.google.dev/
+- Google 계정으로 가입
+- "Get API Key" 또는 "Create API Key"에서 무료 키 발급
+- 무료 등급(Free tier)으로 사용 가능 (월별 사용량 제한 있음)
+- 별도 결제 정보 불필요
 
 #### NAVER API HUB (Local Search API)
 - 홈페이지: https://www.ncloud.com/product/apiService/apigw
@@ -63,7 +65,7 @@ pip install -r requirements.txt
 
 ```bash
 # macOS/Linux 터미널에서
-export OPENAI_API_KEY="your_openai_key_here"
+export GEMINI_API_KEY="your_gemini_api_key_here"
 export NAVER_API_KEY_ID="your_naver_client_id_here"
 export NAVER_API_KEY="your_naver_client_secret_here"
 ```
@@ -71,7 +73,7 @@ export NAVER_API_KEY="your_naver_client_secret_here"
 또는 프로젝트 폴더에 `.env` 파일을 생성합니다:
 
 ```env
-OPENAI_API_KEY=your_openai_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 NAVER_API_KEY_ID=your_naver_client_id_here
 NAVER_API_KEY=your_naver_client_secret_here
 ```
@@ -155,7 +157,7 @@ API 키가 실수로 공개되었다면:
 
 ### API 키 미설정
 ```
-❌ 오류: OPENAI_API_KEY 환경변수가 설정되지 않았습니다.
+❌ 오류: GEMINI_API_KEY 환경변수가 설정되지 않았습니다.
    README.md의 '설정 및 실행 방법'을 참고하여 설정하세요.
 ```
 → **해결**: 위의 "API 키 설정" 섹션을 참고하여 환경변수 설정
@@ -184,7 +186,7 @@ API 키가 실수로 공개되었다면:
 ## 기술 상세
 
 ### 상용 API 사용
-- **OpenAI API** (gpt-4o-mini): 여행지 추천, 최종 리포트 생성
+- **Google Gemini API** (gemini-3.6-flash): 여행지 추천, 최종 리포트 생성
 - **NAVER Local Search API**: 맛집 정보 검색
 
 ### 주요 구현 내용
