@@ -1,0 +1,18 @@
+{
+  "date": "2026-03-15",
+  "generated_at": "2026-09-11T21:53:14.644413",
+  "recommendation": {
+    "recommended_city": "추천 실패",
+    "weather": "정보 없음",
+    "events": [],
+    "reason": "LLM API 호출 실패"
+  },
+  "restaurants": [],
+  "errors": [
+    {
+      "step": "llm_recommendation",
+      "type": "API_ERROR",
+      "message": "LLM 1차 추천 실패: 'OpenAI' object has no attribute 'messages'"
+    }
+  ]
+}
