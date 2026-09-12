@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def load_config():
         "gemini_key": gemini_key,
         "naver_key_id": naver_key_id,
         "naver_key": naver_key,
-        "gemini_model": "gemini-3.6-flash"  # 최신 안정화된 Gemini 모델
+        "gemini_model": "gemini-2.5-flash"
     }
 
 
@@ -78,7 +79,7 @@ def call_llm_for_recommendation(client, date_str):
     try:
         print("  → 1차 추천 생성 중...")
         # Chat API 사용
-        chat = client.chats.create(model="gemini-3.6-flash")
+        chat = client.chats.create(model="gemini-2.5-flash")
         response = chat.send_message(prompt)
         
         response_text = response.text.strip()
@@ -112,7 +113,7 @@ def call_llm_for_recommendation(client, date_str):
 다른 설명 없이 필수 키를 포함한 유효한 JSON만 출력하세요."""
         
         try:
-            chat = client.chats.create(model="gemini-3.6-flash")
+            chat = client.chats.create(model="gemini-2.5-flash")
             response = chat.send_message(retry_prompt)
             response_text = response.text.strip()
             json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
@@ -177,10 +178,12 @@ def search_restaurants(naver_key_id, naver_key, city):
             category = item.get("category", "")
             url = item.get("link", "")
             
-            # 좌표 변환 (문자열 → float)
+            # mapx는 경도, mapy는 위도. 1e7 스케일로 온 값만 정규화한다.
             try:
-                x = float(item.get("mapx", 0)) if item.get("mapx") else 0.0
-                y = float(item.get("mapy", 0)) if item.get("mapy") else 0.0
+                mapx = float(item.get("mapx", 0)) if item.get("mapx") else 0.0
+                mapy = float(item.get("mapy", 0)) if item.get("mapy") else 0.0
+                x = mapx / 10000000.0 if abs(mapx) > 180 else mapx
+                y = mapy / 10000000.0 if abs(mapy) > 90 else mapy
             except (ValueError, TypeError):
                 x, y = 0.0, 0.0
             
@@ -254,14 +257,29 @@ def call_llm_for_report(client, recommendation, restaurants):
 
     try:
         print("  → 최종 리포트 생성 중...")
-        chat = client.chats.create(model="gemini-3.6-flash")
+        chat = client.chats.create(model="gemini-2.5-flash")
         response = chat.send_message(prompt)
         report = response.text.strip()
         print("  ✓ 리포트 생성 완료")
         return report, None
     except Exception as e:
-        error_msg = f"리포트 생성 실패: {str(e)}"
-        return None, {"step": "report_generation", "type": "API_ERROR", "message": error_msg}
+        error_str = str(e)
+        # 최종 리포트의 일시적 서버 오류에만 최초 호출 후 1회 재시도
+        if any(term in error_str.upper() for term in ("503", "UNAVAILABLE", "HIGH DEMAND")):
+            print("  ⚠️  일시적 서버 오류 발생. 1회 재시도 중...")
+            time.sleep(2)
+            try:
+                chat = client.chats.create(model="gemini-2.5-flash")
+                response = chat.send_message(prompt)
+                report = response.text.strip()
+                print("  ✓ 리포트 재시도 성공")
+                return report, None
+            except Exception as retry_error:
+                error_msg = f"리포트 생성 최종 실패 (재시도 후): {str(retry_error)}"
+                return None, {"step": "report_generation", "type": "API_ERROR", "message": error_msg}
+        else:
+            error_msg = f"리포트 생성 실패: {error_str}"
+            return None, {"step": "report_generation", "type": "API_ERROR", "message": error_msg}
 
 
 def create_results_directory():
